@@ -1,0 +1,16 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #f9fafb;
+  background: #0f172a;
+}
+body { margin: 0; }
+.app-shell { max-width: 540px; margin: 0 auto; min-height: 100vh; padding: 16px; }
+header h1 { font-size: 1.4rem; margin: 0 0 8px; }
+main { padding-bottom: 72px; }
+nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; background: #111827; padding: 10px; }
+nav a { color: #9ca3af; text-decoration: none; }
+nav a.active { color: #22c55e; }
+button { background: #16a34a; color: white; border: none; border-radius: 8px; padding: 8px 12px; }
+.center-box { display: grid; place-items: center; min-height: 70vh; gap: 12px; text-align: center; }
+.toolbar { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.card { background: #1f2937; padding: 12px; border-radius: 12px; }
