@@ -32,6 +32,42 @@ Then fill in all Firebase values in `.env`:
 - `VITE_FIREBASE_MESSAGING_SENDER_ID`
 - `VITE_FIREBASE_APP_ID`
 
+#### Where to find these Firebase values
+
+These values come from the **Firebase Web App config object** for your Firebase project.
+
+1. Open the [Firebase Console](https://console.firebase.google.com/).
+2. Select your Firebase project, or create one if it does not exist yet.
+3. In **Project settings > General**, scroll to **Your apps**.
+4. If you do not already have a Web app, click the Web icon (`</>`) to register one.
+5. Select the Web app nickname in **Your apps**.
+6. In **Firebase SDK snippet**, select **Config**.
+7. Copy the values from the `firebaseConfig` object into `.env` using this mapping:
+
+| Firebase config key | `.env` variable |
+| --- | --- |
+| `apiKey` | `VITE_FIREBASE_API_KEY` |
+| `authDomain` | `VITE_FIREBASE_AUTH_DOMAIN` |
+| `projectId` | `VITE_FIREBASE_PROJECT_ID` |
+| `storageBucket` | `VITE_FIREBASE_STORAGE_BUCKET` |
+| `messagingSenderId` | `VITE_FIREBASE_MESSAGING_SENDER_ID` |
+| `appId` | `VITE_FIREBASE_APP_ID` |
+
+Example source object from Firebase:
+
+```ts
+const firebaseConfig = {
+  apiKey: "...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project",
+  storageBucket: "your-project.firebasestorage.app",
+  messagingSenderId: "...",
+  appId: "..."
+};
+```
+
+> Note: Firebase describes these Web config values as project/app identifiers, not private secrets. The app still relies on Firebase Authentication, Firestore Security Rules, and authorized domains to protect data. Do not commit your local `.env` file.
+
 ### 3) Run the app
 
 ```bash
