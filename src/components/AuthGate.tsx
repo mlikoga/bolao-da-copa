@@ -1,37 +1,22 @@
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
-import { useEffect, useState, type PropsWithChildren } from 'react';
-import { auth } from '../lib/firebase';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
 
-export default function AuthGate({ children }: PropsWithChildren) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function AuthGate() {
+  const { status } = useAuth();
+  const location = useLocation();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (newUser) => {
-      setUser(newUser);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  if (loading) return <p>Carregando sessão...</p>;
-
-  if (!user) {
+  if (status === 'loading') {
     return (
-      <div className="center-box">
-        <h2>Entre para participar do bolão</h2>
-        <button onClick={() => signInWithPopup(auth, new GoogleAuthProvider())}>Entrar com Google</button>
+      <div className="loading-screen" role="status" aria-live="polite">
+        <span className="spinner" aria-hidden="true" />
+        <p>Carregando sessão...</p>
       </div>
     );
   }
 
-  return (
-    <>
-      <div className="toolbar">
-        <span>{user.displayName}</span>
-        <button onClick={() => signOut(auth)}>Sair</button>
-      </div>
-      {children}
-    </>
-  );
+  if (status === 'anonymous') {
+    return <Navigate to="/entrar" replace state={{ from: location }} />;
+  }
+
+  return <Outlet />;
 }

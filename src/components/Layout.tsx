@@ -1,5 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
-import type { PropsWithChildren } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
 
 const tabs = [
   { to: '/', label: 'Bolões' },
@@ -8,20 +8,32 @@ const tabs = [
   { to: '/perfil', label: 'Perfil' }
 ];
 
-export default function Layout({ children }: PropsWithChildren) {
-  const location = useLocation();
+export default function Layout() {
+  const { user, signOutUser } = useAuth();
+  const displayName = user?.displayName ?? user?.email ?? 'Participante';
 
   return (
     <div className="app-shell">
-      <header>
-        <h1>Bolão da Copa</h1>
+      <header className="app-header">
+        <div>
+          <p className="eyebrow">Bolão da Copa</p>
+          <h1>Meu painel</h1>
+        </div>
+        <div className="session-summary">
+          <span>{displayName}</span>
+          <button type="button" className="ghost-button" onClick={signOutUser}>
+            Sair
+          </button>
+        </div>
       </header>
-      <main>{children}</main>
-      <nav>
+      <main className="content-area">
+        <Outlet />
+      </main>
+      <nav className="bottom-nav" aria-label="Navegação principal">
         {tabs.map((tab) => (
-          <Link key={tab.to} to={tab.to} className={location.pathname === tab.to ? 'active' : ''}>
+          <NavLink key={tab.to} to={tab.to} className={({ isActive }) => (isActive ? 'active' : undefined)} end={tab.to === '/'}>
             {tab.label}
-          </Link>
+          </NavLink>
         ))}
       </nav>
     </div>
