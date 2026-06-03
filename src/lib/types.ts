@@ -3,9 +3,24 @@ export type Role = 'owner' | 'admin' | 'member';
 export type Pool = {
   id: string;
   name: string;
-  season: string;
+  championshipName: string;
   ownerUid: string;
   inviteCode: string;
+};
+
+export type PoolMember = {
+  uid: string;
+  role: Role;
+  displayName: string;
+  email?: string;
+  inviteCode?: string;
+};
+
+export type PoolInvite = {
+  code: string;
+  poolId: string;
+  poolName: string;
+  championshipName: string;
 };
 
 export type Match = {
@@ -14,7 +29,9 @@ export type Match = {
   homeTeam: string;
   awayTeam: string;
   kickoffAt: string;
-  lockedAt: string;
+  stadium: string;
+  group: string;
+  city: string;
   officialHomeScore?: number;
   officialAwayScore?: number;
 };

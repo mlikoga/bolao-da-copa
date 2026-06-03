@@ -260,3 +260,156 @@ input:focus {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.section-heading h2,
+.pool-details h3 {
+  margin: 0;
+}
+
+.section-heading p,
+.pool-details p {
+  color: #cbd5e1;
+  margin: 6px 0 0;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.stack-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.stack-form label {
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.success-text {
+  color: #86efac;
+  font-weight: 800;
+}
+
+.loading-card,
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  text-align: center;
+}
+
+.empty-state p,
+.loading-card p {
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.pool-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.pool-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  background: rgba(31, 41, 55, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  text-align: left;
+}
+
+.pool-card.selected {
+  background: rgba(22, 163, 74, 0.22);
+  border-color: rgba(134, 239, 172, 0.72);
+}
+
+.pool-card span {
+  font-size: 1rem;
+}
+
+.pool-card small,
+.member-row small {
+  color: #cbd5e1;
+}
+
+.pool-details {
+  display: grid;
+  gap: 18px;
+}
+
+.invite-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px dashed rgba(134, 239, 172, 0.58);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.44);
+}
+
+.invite-code span {
+  color: #cbd5e1;
+  font-weight: 800;
+}
+
+.invite-code strong {
+  color: #86efac;
+  font-size: 1.5rem;
+  letter-spacing: 0.16em;
+}
+
+.member-list {
+  display: grid;
+  gap: 10px;
+}
+
+.member-list-heading,
+.member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.member-list-heading span,
+.member-row > span {
+  color: #86efac;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.member-row {
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  padding-top: 10px;
+}
+
+.member-row div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+@media (max-width: 390px) {
+  .action-grid {
+    grid-template-columns: 1fr;
+  }
+}
