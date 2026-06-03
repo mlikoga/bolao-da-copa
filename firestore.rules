@@ -1,43 +1,179 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // /users/{uid}: private profile data owned by uid.
+    // /pools/{poolId}: { name, championshipName, ownerUid, inviteCode, createdAt, updatedAt }.
+    // /pools/{poolId}/members/{uid}: { uid, role, displayName, email, inviteCode, joinedAt }.
+    // /poolInvites/{inviteCode}: authenticated invite lookup metadata.
+    // /matches/{matchId}, /pools/{poolId}/predictions/{predictionId},
+    // /pools/{poolId}/leaderboard/{uid}: placeholders for later MVP phases.
+    // ===============================================================
+
     function signedIn() {
       return request.auth != null;
     }
 
+    function memberDoc(poolId, uid) {
+      return /databases/$(database)/documents/pools/$(poolId)/members/$(uid);
+    }
+
+    function poolDoc(poolId) {
+      return /databases/$(database)/documents/pools/$(poolId);
+    }
+
+    function inviteDoc(inviteCode) {
+      return /databases/$(database)/documents/poolInvites/$(inviteCode);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function requiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function validString(field, minLength, maxLength) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLength &&
+        request.resource.data[field].size() <= maxLength;
+    }
+
+    function validOptionalString(field, maxLength) {
+      return !(field in request.resource.data) ||
+        (request.resource.data[field] is string && request.resource.data[field].size() <= maxLength);
+    }
+
+    function validInviteCode(inviteCode) {
+      return inviteCode is string && inviteCode.matches('^[A-Z0-9]{6}$');
+    }
+
+    function validTimestamp(field) {
+      return request.resource.data[field] is timestamp;
+    }
+
     function isMember(poolId) {
-      return exists(/databases/$(database)/documents/pools/$(poolId)/members/$(request.auth.uid));
+      return signedIn() && exists(memberDoc(poolId, request.auth.uid));
+    }
+
+    function memberRole(poolId) {
+      return get(memberDoc(poolId, request.auth.uid)).data.role;
     }
 
     function isAdmin(poolId) {
-      let role = get(/databases/$(database)/documents/pools/$(poolId)/members/$(request.auth.uid)).data.role;
-      return role in ['owner', 'admin'];
+      return isMember(poolId) && memberRole(poolId) in ['owner', 'admin'];
+    }
+
+    function isPoolOwner(poolId) {
+      return isMember(poolId) && memberRole(poolId) == 'owner';
+    }
+
+    function immutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function validPoolData() {
+      return hasOnlyAllowedFields(['name', 'championshipName', 'ownerUid', 'inviteCode', 'createdAt', 'updatedAt']) &&
+        requiredFields(['name', 'championshipName', 'ownerUid', 'inviteCode', 'createdAt', 'updatedAt']) &&
+        validString('name', 3, 80) &&
+        validString('championshipName', 4, 40) &&
+        validString('ownerUid', 1, 128) &&
+        validInviteCode(request.resource.data.inviteCode) &&
+        validTimestamp('createdAt') &&
+        validTimestamp('updatedAt');
+    }
+
+    function validPoolCreate() {
+      return validPoolData() && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function validPoolUpdate() {
+      return validPoolData() && immutableFieldsUnchanged(['ownerUid', 'inviteCode', 'createdAt']);
+    }
+
+    function validInviteData(inviteCode) {
+      return hasOnlyAllowedFields(['code', 'poolId', 'poolName', 'championshipName', 'createdBy', 'createdAt']) &&
+        requiredFields(['code', 'poolId', 'poolName', 'championshipName', 'createdBy', 'createdAt']) &&
+        request.resource.data.code == inviteCode &&
+        validInviteCode(request.resource.data.code) &&
+        validString('poolId', 1, 128) &&
+        validString('poolName', 3, 80) &&
+        validString('championshipName', 4, 40) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        validTimestamp('createdAt');
+    }
+
+    function inviteTargetsPool(poolId) {
+      return validInviteCode(request.resource.data.inviteCode) &&
+        getAfter(inviteDoc(request.resource.data.inviteCode)).data.poolId == poolId;
+    }
+
+    function validMemberData(uid) {
+      return hasOnlyAllowedFields(['uid', 'role', 'displayName', 'email', 'inviteCode', 'joinedAt']) &&
+        requiredFields(['uid', 'role', 'displayName', 'inviteCode', 'joinedAt']) &&
+        request.resource.data.uid == uid &&
+        request.resource.data.role in ['owner', 'admin', 'member'] &&
+        validString('displayName', 1, 80) &&
+        validOptionalString('email', 254) &&
+        validInviteCode(request.resource.data.inviteCode) &&
+        validTimestamp('joinedAt');
+    }
+
+    function validOwnerMemberCreate(poolId, uid) {
+      return uid == request.auth.uid &&
+        request.resource.data.role == 'owner' &&
+        getAfter(poolDoc(poolId)).data.ownerUid == request.auth.uid &&
+        getAfter(poolDoc(poolId)).data.inviteCode == request.resource.data.inviteCode &&
+        inviteTargetsPool(poolId);
+    }
+
+    function validJoinedMemberCreate(poolId, uid) {
+      return uid == request.auth.uid &&
+        request.resource.data.role == 'member' &&
+        inviteTargetsPool(poolId);
     }
 
     match /users/{uid} {
       allow read, write: if signedIn() && request.auth.uid == uid;
     }
 
+    match /poolInvites/{inviteCode} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() &&
+        validInviteData(inviteCode) &&
+        getAfter(poolDoc(request.resource.data.poolId)).data.ownerUid == request.auth.uid &&
+        getAfter(poolDoc(request.resource.data.poolId)).data.inviteCode == inviteCode;
+      allow update, delete: if false;
+    }
+
     match /pools/{poolId} {
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
-      allow read: if signedIn() && isMember(poolId);
-      allow update, delete: if signedIn() && isAdmin(poolId);
+      allow create: if signedIn() && validPoolCreate();
+      allow read: if isMember(poolId);
+      allow update: if isAdmin(poolId) && validPoolUpdate();
+      allow delete: if false;
 
       match /members/{uid} {
-        allow read: if signedIn() && isMember(poolId);
-        allow create: if signedIn() && request.auth.uid == uid;
-        allow update, delete: if signedIn() && isAdmin(poolId);
+        allow get, list: if signedIn() && (request.auth.uid == uid || isMember(poolId));
+        allow create: if signedIn() &&
+          validMemberData(uid) &&
+          (validOwnerMemberCreate(poolId, uid) || validJoinedMemberCreate(poolId, uid));
+        allow update: if isPoolOwner(poolId) && validMemberData(uid) && immutableFieldsUnchanged(['uid', 'joinedAt', 'inviteCode']);
+        allow delete: if isPoolOwner(poolId) && uid != request.auth.uid;
       }
 
       match /predictions/{predictionId} {
-        allow read: if signedIn() && isMember(poolId);
-        allow create, update: if signedIn() && isMember(poolId) && request.resource.data.uid == request.auth.uid;
+        allow read: if isMember(poolId);
+        allow create, update: if isMember(poolId) && request.resource.data.uid == request.auth.uid;
         allow delete: if false;
       }
 
       match /leaderboard/{uid} {
-        allow read: if signedIn() && isMember(poolId);
-        allow write: if signedIn() && isAdmin(poolId);
+        allow read: if isMember(poolId);
+        allow write: if isAdmin(poolId);
       }
     }
 
