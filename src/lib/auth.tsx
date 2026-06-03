@@ -1,12 +1,26 @@
-import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  type User
+} from 'firebase/auth';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import { auth, googleProvider } from './firebase';
 
 type AuthStatus = 'loading' | 'authenticated' | 'anonymous';
 
+type EmailCredentials = {
+  email: string;
+  password: string;
+};
+
 type AuthContextValue = {
   status: AuthStatus;
   user: User | null;
+  createAccountWithEmail: (credentials: EmailCredentials) => Promise<void>;
+  signInWithEmail: (credentials: EmailCredentials) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
 };
@@ -26,6 +40,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return unsubscribe;
   }, []);
 
+  const createAccountWithEmail = useCallback(async ({ email, password }: EmailCredentials) => {
+    await createUserWithEmailAndPassword(auth, email, password);
+  }, []);
+
+  const signInWithEmail = useCallback(async ({ email, password }: EmailCredentials) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     googleProvider.setCustomParameters({ prompt: 'select_account' });
     await signInWithPopup(auth, googleProvider);
@@ -36,8 +58,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, []);
 
   const value = useMemo(
-    () => ({ status, user, signInWithGoogle, signOutUser }),
-    [status, user, signInWithGoogle, signOutUser]
+    () => ({ status, user, createAccountWithEmail, signInWithEmail, signInWithGoogle, signOutUser }),
+    [status, user, createAccountWithEmail, signInWithEmail, signInWithGoogle, signOutUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -53,4 +75,4 @@ export function useAuth() {
   return context;
 }
 
-export type { AuthStatus };
+export type { AuthStatus, EmailCredentials };
