@@ -5,6 +5,7 @@ service cloud.firestore {
     // Assumed Data Model
     // ===============================================================
     // /users/{uid}: private profile data owned by uid.
+    // /users/{uid}/pools/{poolId}: user-owned pool membership index for app queries.
     // /pools/{poolId}: { name, championshipName, ownerUid, inviteCode, createdAt, updatedAt }.
     // /pools/{poolId}/members/{uid}: { uid, role, displayName, email, inviteCode, joinedAt }.
     // /poolInvites/{inviteCode}: authenticated invite lookup metadata.
@@ -111,14 +112,26 @@ service cloud.firestore {
         getAfter(inviteDoc(request.resource.data.inviteCode)).data.poolId == poolId;
     }
 
+    function validRole(role) {
+      return role in ['owner', 'admin', 'member'];
+    }
+
     function validMemberData(uid) {
       return hasOnlyAllowedFields(['uid', 'role', 'displayName', 'email', 'inviteCode', 'joinedAt']) &&
         requiredFields(['uid', 'role', 'displayName', 'inviteCode', 'joinedAt']) &&
         request.resource.data.uid == uid &&
-        request.resource.data.role in ['owner', 'admin', 'member'] &&
+        validRole(request.resource.data.role) &&
         validString('displayName', 1, 80) &&
         validOptionalString('email', 254) &&
         validInviteCode(request.resource.data.inviteCode) &&
+        validTimestamp('joinedAt');
+    }
+
+    function validUserPoolData(poolId) {
+      return hasOnlyAllowedFields(['poolId', 'role', 'joinedAt']) &&
+        requiredFields(['poolId', 'role', 'joinedAt']) &&
+        request.resource.data.poolId == poolId &&
+        validRole(request.resource.data.role) &&
         validTimestamp('joinedAt');
     }
 
@@ -126,8 +139,7 @@ service cloud.firestore {
       return uid == request.auth.uid &&
         request.resource.data.role == 'owner' &&
         getAfter(poolDoc(poolId)).data.ownerUid == request.auth.uid &&
-        getAfter(poolDoc(poolId)).data.inviteCode == request.resource.data.inviteCode &&
-        inviteTargetsPool(poolId);
+        getAfter(poolDoc(poolId)).data.inviteCode == request.resource.data.inviteCode;
     }
 
     function validJoinedMemberCreate(poolId, uid) {
@@ -138,6 +150,12 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read, write: if signedIn() && request.auth.uid == uid;
+
+      match /pools/{poolId} {
+        allow read, list: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() && request.auth.uid == uid && validUserPoolData(poolId);
+        allow delete: if false;
+      }
     }
 
     match /poolInvites/{inviteCode} {

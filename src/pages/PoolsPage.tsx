@@ -12,10 +12,18 @@ const roleLabels: Record<PoolMember['role'], string> = {
   member: 'Membro'
 };
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, action: 'create' | 'join' | 'load' = 'load') {
   if (error instanceof FirebaseError) {
     if (error.code === 'permission-denied') {
-      return 'Você não tem permissão para concluir esta ação. Confira o código ou tente novamente.';
+      if (action === 'create') {
+        return 'Não foi possível criar o bolão por falta de permissão. Atualize a página e tente novamente.';
+      }
+
+      if (action === 'join') {
+        return 'Você não tem permissão para entrar nesse bolão. Confira o código e tente novamente.';
+      }
+
+      return 'Não foi possível carregar seus bolões por falta de permissão. Atualize a página e tente novamente.';
     }
 
     return 'Não foi possível sincronizar com o Firestore. Tente novamente.';
@@ -67,7 +75,7 @@ export default function PoolsPage() {
         });
       },
       (error) => {
-        setErrorMessage(getErrorMessage(error));
+        setErrorMessage(getErrorMessage(error, 'load'));
         setLoadingPools(false);
       }
     );
@@ -92,7 +100,7 @@ export default function PoolsPage() {
       })
       .catch((error) => {
         if (active) {
-          setErrorMessage(getErrorMessage(error));
+          setErrorMessage(getErrorMessage(error, 'load'));
         }
       })
       .finally(() => {
@@ -128,7 +136,7 @@ export default function PoolsPage() {
       setFormMode(null);
       setFeedbackMessage('Bolão criado! Compartilhe o código com seus convidados.');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, 'create'));
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +159,7 @@ export default function PoolsPage() {
       setFormMode(null);
       setFeedbackMessage(result.alreadyMember ? 'Você já participa desse bolão.' : 'Você entrou no bolão!');
     } catch (error) {
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage(getErrorMessage(error, 'join'));
     } finally {
       setSubmitting(false);
     }

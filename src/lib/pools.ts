@@ -1,14 +1,11 @@
 import {
   collection,
-  collectionGroup,
   doc,
   getDoc,
   getDocs,
   onSnapshot,
-  query,
   runTransaction,
   serverTimestamp,
-  where,
   writeBatch,
   type Unsubscribe
 } from 'firebase/firestore';
@@ -55,6 +52,14 @@ function getMemberData(user: User, role: PoolMember['role'], inviteCode: string)
   };
 }
 
+function getUserPoolData(poolId: string, role: PoolMember['role']) {
+  return {
+    poolId,
+    role,
+    joinedAt: serverTimestamp()
+  };
+}
+
 function toPool(id: string, data: Record<string, unknown>): Pool {
   return {
     id,
@@ -95,6 +100,7 @@ export async function createPool(user: User, { name, championshipName = DEFAULT_
   const inviteCode = buildInviteCode();
   const inviteRef = doc(db, 'poolInvites', inviteCode);
   const ownerMemberRef = doc(db, 'pools', poolRef.id, 'members', user.uid);
+  const userPoolRef = doc(db, 'users', user.uid, 'pools', poolRef.id);
   const batch = writeBatch(db);
   const now = serverTimestamp();
 
@@ -107,6 +113,7 @@ export async function createPool(user: User, { name, championshipName = DEFAULT_
     updatedAt: now
   });
   batch.set(ownerMemberRef, getMemberData(user, 'owner', inviteCode));
+  batch.set(userPoolRef, getUserPoolData(poolRef.id, 'owner'));
   batch.set(inviteRef, {
     code: inviteCode,
     poolId: poolRef.id,
@@ -139,6 +146,7 @@ export async function joinPoolByInviteCode(user: User, rawInviteCode: string): P
 
     const invite = toInvite(inviteSnapshot.id, inviteSnapshot.data());
     const memberRef = doc(db, 'pools', invite.poolId, 'members', user.uid);
+    const userPoolRef = doc(db, 'users', user.uid, 'pools', invite.poolId);
     const memberSnapshot = await transaction.get(memberRef);
 
     if (memberSnapshot.exists()) {
@@ -146,28 +154,24 @@ export async function joinPoolByInviteCode(user: User, rawInviteCode: string): P
     }
 
     transaction.set(memberRef, getMemberData(user, 'member', inviteCode));
+    transaction.set(userPoolRef, getUserPoolData(invite.poolId, 'member'));
 
     return { poolId: invite.poolId, alreadyMember: false };
   });
 }
 
 export function subscribeToUserPools(user: User, onChange: (pools: Pool[]) => void, onError: (error: Error) => void): Unsubscribe {
-  const membershipsQuery = query(collectionGroup(db, 'members'), where('uid', '==', user.uid));
+  const userPoolsRef = collection(db, 'users', user.uid, 'pools');
   let disposed = false;
 
   const unsubscribe = onSnapshot(
-    membershipsQuery,
+    userPoolsRef,
     async (snapshot) => {
       try {
         const pools = await Promise.all(
           snapshot.docs.map(async (membershipDoc) => {
-            const poolRef = membershipDoc.ref.parent.parent;
-
-            if (!poolRef) {
-              return null;
-            }
-
-            const poolSnapshot = await getDoc(poolRef);
+            const poolId = String(membershipDoc.data().poolId ?? membershipDoc.id);
+            const poolSnapshot = await getDoc(doc(db, 'pools', poolId));
             return poolSnapshot.exists() ? toPool(poolSnapshot.id, poolSnapshot.data()) : null;
           })
         );
